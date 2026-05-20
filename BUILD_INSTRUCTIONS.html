@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build an Agent from Scratch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f6fa;
+      color: #1a1a2e;
+      line-height: 1.7;
+    }
+
+    header {
+      background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+      color: #fff;
+      padding: 48px 40px 40px;
+    }
+    header h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p  { margin-top: 10px; font-size: 1.05rem; opacity: 0.85; max-width: 640px; }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 0.78rem;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    main { max-width: 900px; margin: 40px auto; padding: 0 24px 80px; }
+
+    section { margin-bottom: 44px; }
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #0f3460;
+      border-left: 4px solid #e94560;
+      padding-left: 14px;
+      margin-bottom: 18px;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin: 28px 0 10px;
+    }
+
+    p { margin-bottom: 12px; }
+
+    /* Architecture diagram */
+    .arch {
+      background: #fff;
+      border: 1px solid #e0e3ef;
+      border-radius: 10px;
+      padding: 28px 32px;
+      font-family: "Courier New", monospace;
+      font-size: 0.88rem;
+      line-height: 2;
+      color: #333;
+      overflow-x: auto;
+    }
+
+    /* Step cards */
+    .steps { display: flex; flex-direction: column; gap: 16px; }
+
+    .step {
+      background: #fff;
+      border: 1px solid #e0e3ef;
+      border-radius: 10px;
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .step-num {
+      width: 40px;
+      height: 40px;
+      background: #0f3460;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .step h3 { margin: 0 0 6px; font-size: 1rem; }
+    .step p  { margin: 0; font-size: 0.93rem; color: #444; }
+
+    /* Setup steps (ordered list style) */
+    .setup-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .setup-step {
+      background: #fff;
+      border: 1px solid #e0e3ef;
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .setup-num {
+      width: 32px;
+      height: 32px;
+      background: #e94560;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    .setup-step p { margin: 0; font-size: 0.93rem; }
+    .setup-step p + p { margin-top: 6px; color: #666; font-size: 0.88rem; }
+
+    /* File cards */
+    .file-grid { display: flex; flex-direction: column; gap: 14px; }
+
+    .file-card {
+      background: #fff;
+      border: 1px solid #e0e3ef;
+      border-radius: 10px;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .file-num {
+      width: 36px;
+      height: 36px;
+      background: #0f3460;
+      color: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .file-card .path {
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+      color: #0f3460;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .file-card .what {
+      font-size: 0.92rem;
+      color: #555;
+      margin-bottom: 8px;
+    }
+    .file-card .task {
+      background: #fff8e1;
+      border-left: 3px solid #f9a825;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      color: #333;
+      border-radius: 0 5px 5px 0;
+    }
+    .file-card .task strong { color: #e65100; }
+    .file-card .task code {
+      background: #f5f5f5;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+    }
+
+    /* Tip / warn boxes */
+    .tip {
+      background: #e3f2fd;
+      border-left: 4px solid #1976d2;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      font-size: 0.92rem;
+      color: #0d47a1;
+      margin-top: 14px;
+    }
+    .tip strong { color: #0d47a1; }
+
+    .warn {
+      background: #fff3e0;
+      border-left: 4px solid #f57c00;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      font-size: 0.92rem;
+      color: #e65100;
+      margin-top: 14px;
+    }
+
+    /* Marker highlight */
+    code.marker {
+      background: #fce4ec;
+      color: #c62828;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e0e3ef;
+      font-size: 0.9rem;
+    }
+    th {
+      background: #0f3460;
+      color: #fff;
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+    }
+    td { padding: 11px 16px; border-top: 1px solid #e0e3ef; vertical-align: top; }
+    tr:hover td { background: #f9faff; }
+    td code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: "Courier New", monospace;
+      font-size: 0.83rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Hands-on Exercise</div>
+  <h1>Build an AI Agent from Scratch</h1>
+  <p>
+    You will implement the core of a real MCP (Model Context Protocol) agent —
+    the same pattern used by Claude Desktop and other production AI assistants.
+    By the end, you will have a working to-do chatbot driven by a local LLM.
+  </p>
+</header>
+
+<main>
+
+  <!-- ─── SECTION 1: CONTEXT ─────────────────────────────────────────────── -->
+  <section>
+    <h2>1. Context — What Is an Agent?</h2>
+
+    <p>
+      An <strong>AI agent</strong> is a program that connects a language model (LLM) to tools
+      in the real world. The LLM reads the user's message and decides <em>which tool to call</em>
+      and <em>with what arguments</em>. The agent then runs that tool and returns the result.
+    </p>
+
+    <p>
+      In this exercise the agent has one tool: <strong>add_task</strong>. It saves a to-do item
+      to a CSV file. The user types a natural-language message; the agent figures out what the
+      task is and stores it — no manual form-filling required.
+    </p>
+
+    <h3>The four-step agent loop</h3>
+    <p>Every MCP agent follows the same loop, regardless of which tools it has:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <h3>Host fetches tools</h3>
+          <p>
+            The host connects to the MCP server and asks <em>"what tools do you have?"</em>.
+            The server replies with the name, description, and input schema of every tool.
+            No tools are hardcoded anywhere in the host.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <h3>Host presents tools to the LLM</h3>
+          <p>
+            The host sends the user's message <em>and</em> the tool list to the LLM via the
+            function-calling API. The LLM can now see both what the user wants and what
+            actions are available.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <h3>LLM decides which tool to call</h3>
+          <p>
+            Instead of replying with plain text, the LLM responds with a structured
+            <em>tool call</em>: the name of the tool and the arguments it wants to pass.
+            The LLM never runs the tool itself — it only decides.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div>
+          <h3>Host executes the tool via MCP</h3>
+          <p>
+            The host validates the LLM's arguments, then forwards the tool call to the MCP
+            server using the MCP protocol. The server runs the tool and returns a result.
+            The host shows the result to the user.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h3>System architecture</h3>
+    <div class="arch">
+      <pre>
+  User (browser)
+      │
+      ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │  todo-mcp-host/  (YOU BUILD THIS)                       │
+  │                                                         │
+  │  ChatUI  ──►  App.process()  ──►  LlmClient.generate() │
+  │                    │                       │            │
+  │                    │            Ollama LLM (local)      │
+  │                    │                       │            │
+  │                    ◄────── tool_call ───────┘            │
+  │                    │                                    │
+  │                    ▼                                    │
+  │              McpClient.call_tool()                      │
+  └──────────────────────────────────────────────────────── ┘
+                        │   MCP protocol (HTTP)
+                        ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │  todo-mcp-server/  (ALREADY BUILT — just run it)        │
+  │                                                         │
+  │  FastMCP server  ──►  add_task  ──►  todo.csv           │
+  └─────────────────────────────────────────────────────────┘
+      </pre>
+    </div>
+  </section>
+
+
+  <!-- ─── SECTION 2: WHAT TO DO ──────────────────────────────────────────── -->
+  <section>
+    <h2>2. What To Do</h2>
+
+    <h3>Before you write a single line of code</h3>
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="setup-num">1</div>
+        <div>
+          <p><strong>Create two separate git repositories</strong> — one for <code>todo-mcp-server/</code> and one for <code>todo-mcp-host/</code>.</p>
+          <p>Each component is an independent deployable unit and should have its own version history.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-num">2</div>
+        <div>
+          <p><strong>Read both README files in full</strong> — <code>todo-mcp-server/README.md</code> and <code>todo-mcp-host/README.md</code>.</p>
+          <p>They cover prerequisites, environment setup, how to install dependencies, how to run each component, and what the expected behaviour looks like. Do not skip this step.</p>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-num">3</div>
+        <div>
+          <p><strong>Read every source file</strong> in <code>todo-mcp-host/</code> top-to-bottom before touching anything.</p>
+          <p>
+            Every class and method has a docstring that explains its contract.
+            The files you will <em>not</em> implement (<code>config.py</code>, <code>chat_ui.py</code>,
+            <code>logging_config.py</code>, <code>main()</code>, <code>App.run()</code>) are the
+            scaffolding that holds everything together — you need to understand them to implement
+            the parts that are missing.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Implement these files — in order</h3>
+
+    <p>
+      Each file below has one or more sections marked:
+    </p>
+    <p style="text-align:center; margin: 14px 0 20px;">
+      <code class="marker">**** START HERE ****</code>
+      &nbsp;&nbsp;…your code…&nbsp;&nbsp;
+      <code class="marker">****  END HERE  ****</code>
+    </p>
+
+    <div class="tip" style="margin-bottom: 20px;">
+      <strong>Tip:</strong> Inside each marked section you will find detailed hints and a worked
+      example showing the exact API calls. Read the hints before writing anything.
+    </div>
+
+    <div class="file-grid">
+
+      <div class="file-card">
+        <div class="file-num">1</div>
+        <div class="file-body">
+          <div class="path">todo-mcp-host/prompts/system_prompt.md</div>
+          <div class="what">
+            The instructions you give the LLM before it sees any user message.
+            This is what tells the model to call <code>add_task</code> and how to fill the fields.
+          </div>
+          <div class="task">
+            <strong>Write:</strong> A system prompt that tells the LLM to act as a to-do assistant,
+            call the <code>add_task</code> tool for actionable messages, fill the correct fields
+            (<code>description</code>, <code>status</code>, <code>category</code>,
+            <code>people</code>, <code>deadline</code>), and reply with plain text when no task
+            is present. Include the <code>{TODAY}</code> placeholder for the current date.
+          </div>
+        </div>
+      </div>
+
+      <div class="file-card">
+        <div class="file-num">2</div>
+        <div class="file-body">
+          <div class="path">todo-mcp-host/src/mcp_todo_host/task_parser.py</div>
+          <div class="what">
+            Validates the arguments the LLM produced and applies defaults for missing optional fields.
+            This sits between the LLM output and the MCP call — always sanitise before you act.
+          </div>
+          <div class="task">
+            <strong>Implement:</strong> <code>TaskParser.validate()</code> —
+            check that <code>description</code> is non-empty, apply defaults for the four optional
+            fields, and return a clean 5-key dict.
+          </div>
+        </div>
+      </div>
+
+      <div class="file-card">
+        <div class="file-num">3</div>
+        <div class="file-body">
+          <div class="path">todo-mcp-host/src/mcp_todo_host/llm_client.py</div>
+          <div class="what">
+            Wraps the local Ollama model. Builds the message list (system + user),
+            passes the tool definitions, and extracts the tool call from the response.
+            This is where the LLM's decision is captured.
+          </div>
+          <div class="task">
+            <strong>Implement:</strong> <code>LlmClient.generate()</code> —
+            inject today's date into the prompt, build the messages list, call
+            <code>self._client.chat(..., tools=tools)</code>, and return
+            <code>{"name": ..., "arguments": ...}</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="file-card">
+        <div class="file-num">4</div>
+        <div class="file-body">
+          <div class="path">todo-mcp-host/src/mcp_todo_host/mcp_client.py</div>
+          <div class="what">
+            The MCP protocol client. Connects to the MCP server over HTTP, retrieves the tool
+            list, and calls tools — all using the official MCP Python SDK.
+            This file has five sections to implement.
+          </div>
+          <div class="task">
+            <strong>Implement (5 sections):</strong><br/>
+            &bull; <code>_mcp_tool_to_ollama(tool)</code> — convert an MCP Tool object to Ollama format.<br/>
+            &bull; <code>list_tools()</code> — synchronous wrapper using <code>asyncio.run()</code>.<br/>
+            &bull; <code>_list_tools_async()</code> — call <code>session.list_tools()</code> and convert results.<br/>
+            &bull; <code>call_tool()</code> — synchronous wrapper using <code>asyncio.run()</code>.<br/>
+            &bull; <code>_call_tool_async()</code> — call the tool and parse the JSON result.<br/>
+            <br/>
+            <em>Note: <code>_with_session()</code> is already implemented — use it inside the two async methods.</em>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-card">
+        <div class="file-num">5</div>
+        <div class="file-body">
+          <div class="path">todo-mcp-host/main.py</div>
+          <div class="what">
+            The orchestrator. <code>App.process()</code> is the agent loop itself —
+            the method that connects all four steps together in one place.
+          </div>
+          <div class="task">
+            <strong>Implement:</strong> <code>App.process()</code> —
+            call <code>list_tools()</code> → <code>generate()</code> → <code>validate()</code>
+            → <code>call_tool()</code> → return the success string.
+            This is the payoff: all the pieces you built come together here.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="warn" style="margin-top: 20px;">
+      <strong>Do not edit</strong> any file inside <code>todo-mcp-server/</code>.
+    </div>
+  </section>
+
+
+  <!-- ─── SECTION 3: HOW TO CHECK ───────────────────────────────────────── -->
+  <section>
+    <h2>3. How to Check Your Work</h2>
+
+    <p>
+      Follow the startup instructions in <code>todo-mcp-host/README.md</code> to run both
+      components. Once running, use the scenarios below to verify that the agent behaves correctly.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>What to check</th>
+          <th>What success looks like</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Start both components</td>
+          <td>Streamlit chat UI opens in the browser with no Python errors in the terminal</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Type a task: <em>"Add a task to call Alice about the project by Friday"</em></td>
+          <td>Agent replies: <em>"Task added: call Alice about the project (saved at ./data/todo.csv)"</em></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Open <code>todo-mcp-server/data/todo.csv</code></td>
+          <td>File contains a new row with description, status=todo, people=Alice, deadline=Friday</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Type a greeting: <em>"Hello!"</em></td>
+          <td>Agent replies with plain text — no tool called, no CSV row added</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Stop the MCP server and send a task</td>
+          <td>Agent shows <em>"Error: MCP server unreachable"</em> instead of crashing</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip" style="margin-top: 16px;">
+      <strong>Tip:</strong> Check <code>todo-mcp-host/logs/host.log</code> when something goes
+      wrong. Every step of the agent loop is logged — you will see exactly where the failure is.
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>
