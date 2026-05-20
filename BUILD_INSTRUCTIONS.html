@@ -379,6 +379,28 @@
       <div class="setup-step">
         <div class="setup-num">3</div>
         <div>
+          <p><strong>Set up the MCP server in Claude Desktop and run it first.</strong></p>
+          <p>
+            Before writing any host code, get the server working end-to-end with a real MCP client
+            so you can see the protocol in action:
+          </p>
+          <ol style="margin: 8px 0 4px 20px; font-size: 0.93rem; line-height: 1.9;">
+            <li>Follow the <strong>Setup</strong> section in <code>todo-mcp-server/README.md</code> to install dependencies and start the server: <code>python -m csv_todo_mcp.server</code></li>
+            <li>Connect the running server to Claude Desktop using its interface.</li>
+            <li>Open a new conversation in Claude Desktop. Ask: <em>"What tools do you have?"</em> — confirm <code>add_task</code> appears.</li>
+            <li>Ask Claude to add a to-do item, e.g. <em>"Add a task to call Alice by Friday."</em> Open <code>todo-mcp-server/data/todo.csv</code> and confirm the row was written.</li>
+          </ol>
+          <p>
+            This step has no code to write — it is purely observational. Once you have seen the
+            tool called and the CSV updated, you understand exactly what the host you are about to
+            build must do. Then come back here and continue to step 4.
+          </p>
+        </div>
+      </div>
+
+      <div class="setup-step">
+        <div class="setup-num">4</div>
+        <div>
           <p><strong>Read every source file</strong> in <code>todo-mcp-host/</code> top-to-bottom before touching anything.</p>
           <p>
             Every class and method has a docstring that explains its contract.
